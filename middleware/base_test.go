@@ -22,8 +22,11 @@ func TestMessageLogic(t *testing.T) {
 	gor.On("message", incrReceived, "", &passby)
 	gor.On("request", incrReceived, "", &passby)
 	gor.On("response", incrReceived, "2", &passby)
-	if len(gor.queue) != 3 {
-		t.Errorf("gor queue length %d != 3", len(gor.queue))
+	if len(gor.retainQueue) != 2 {
+		t.Errorf("gor retain queue length %d != 2", len(gor.retainQueue))
+	}
+	if len(gor.tempQueue) != 1 {
+		t.Errorf("gor temp queue length %d != 1", len(gor.tempQueue))
 	}
 	req, err := gor.ParseMessage(hex.EncodeToString([]byte("1 2 3\nGET / HTTP/1.1\r\n\r\n")))
 	if err != nil {

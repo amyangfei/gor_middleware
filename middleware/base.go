@@ -27,18 +27,20 @@ type InterFunc struct {
 }
 
 type Gor struct {
-	queue  map[string]([]*InterFunc)
-	lock   *sync.RWMutex
-	input  chan string
-	stderr io.Writer
+	retainQueue map[string]([]*InterFunc)
+	tempQueue   map[string]([]*InterFunc)
+	lock        *sync.RWMutex
+	input       chan string
+	stderr      io.Writer
 }
 
 func CreateGor() *Gor {
 	gor := &Gor{
-		queue:  make(map[string]([]*InterFunc)),
-		lock:   new(sync.RWMutex),
-		input:  make(chan string),
-		stderr: os.Stderr,
+		retainQueue: make(map[string]([]*InterFunc)),
+		tempQueue:   make(map[string]([]*InterFunc)),
+		lock:        new(sync.RWMutex),
+		input:       make(chan string),
+		stderr:      os.Stderr,
 	}
 	return gor
 }
@@ -50,17 +52,27 @@ func (gor *Gor) On(
 	if idx != "" {
 		channel = channel + "#" + idx
 	}
-	gor.lock.Lock()
 	inmsg := &InterFunc{
 		fn:   fn,
 		args: args,
 	}
-	if c, ok := gor.queue[channel]; ok {
-		c = append(c, inmsg)
+	gor.lock.Lock()
+	if idx != "" {
+		if c, ok := gor.tempQueue[channel]; ok {
+			c = append(c, inmsg)
+		} else {
+			newChan := make([]*InterFunc, 0)
+			newChan = append(newChan, inmsg)
+			gor.tempQueue[channel] = newChan
+		}
 	} else {
-		newChan := make([]*InterFunc, 0)
-		newChan = append(newChan, inmsg)
-		gor.queue[channel] = newChan
+		if c, ok := gor.retainQueue[channel]; ok {
+			c = append(c, inmsg)
+		} else {
+			newChan := make([]*InterFunc, 0)
+			newChan = append(newChan, inmsg)
+			gor.retainQueue[channel] = newChan
+		}
 	}
 	gor.lock.Unlock()
 }
@@ -70,16 +82,26 @@ func (gor *Gor) Emit(msg *GorMessage) error {
 	if !ok {
 		return errors.New(fmt.Sprintf("invalid message type: %s", msg.Type))
 	}
-	chanIds := [3]string{
-		"message", chanPrefix, fmt.Sprintf("%s#%d", chanPrefix, msg.Id)}
+	chanIds := [2]string{"message", chanPrefix}
 	resp := msg
 	for _, chanId := range chanIds {
-		if funcs, ok := gor.queue[chanId]; ok {
+		if funcs, ok := gor.retainQueue[chanId]; ok {
 			for _, f := range funcs {
 				r := f.fn(gor, msg, f.args)
 				if r != nil {
 					resp = r
 				}
+			}
+		}
+	}
+	tempChanId := fmt.Sprintf("%s#%d", chanPrefix, msg.Id)
+	if funcs, ok := gor.tempQueue[tempChanId]; ok {
+		var f *InterFunc
+		for len(funcs) > 0 {
+			f, funcs = funcs[0], funcs[1:]
+			r := f.fn(gor, msg, f.args)
+			if r != nil {
+				resp = r
 			}
 		}
 	}

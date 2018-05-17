@@ -22,7 +22,7 @@ type GorMessage struct {
 }
 
 type InterFunc struct {
-	fn   func(...interface{}) *GorMessage
+	fn   func(*Gor, *GorMessage, ...interface{}) *GorMessage
 	args []interface{}
 }
 
@@ -43,7 +43,10 @@ func CreateGor() *Gor {
 	return gor
 }
 
-func (gor *Gor) On(channel string, fn func(...interface{}) *GorMessage, idx string, args ...interface{}) {
+func (gor *Gor) On(
+	channel string, fn func(*Gor, *GorMessage, ...interface{}) *GorMessage,
+	idx string, args ...interface{}) {
+
 	if idx != "" {
 		channel = channel + "#" + idx
 	}
@@ -56,8 +59,8 @@ func (gor *Gor) On(channel string, fn func(...interface{}) *GorMessage, idx stri
 		c = append(c, inmsg)
 	} else {
 		newChan := make([]*InterFunc, 0)
-		gor.queue[channel] = newChan
 		newChan = append(newChan, inmsg)
+		gor.queue[channel] = newChan
 	}
 	gor.lock.Unlock()
 }
@@ -73,7 +76,7 @@ func (gor *Gor) Emit(msg *GorMessage) error {
 	for _, chanId := range chanIds {
 		if funcs, ok := gor.queue[chanId]; ok {
 			for _, f := range funcs {
-				r := f.fn(msg, f.args)
+				r := f.fn(gor, msg, f.args)
 				if r != nil {
 					resp = r
 				}
@@ -119,7 +122,7 @@ func (gor *Gor) ParseMessage(line string) (*GorMessage, error) {
 	}, nil
 }
 
-func (gor *Gor) PreProcessor() {
+func (gor *Gor) preProcessor() {
 	for {
 		line := <-gor.input
 		if msg, err := gor.ParseMessage(line); err != nil {
@@ -130,9 +133,14 @@ func (gor *Gor) PreProcessor() {
 	}
 }
 
-func (gor *Gor) Receiver() {
+func (gor *Gor) receiver() {
 	scanner := bufio.NewScanner(os.Stdin)
 	for scanner.Scan() {
 		gor.input <- scanner.Text()
 	}
+}
+
+func (gor *Gor) Run() {
+	go gor.receiver()
+	go gor.preProcessor()
 }

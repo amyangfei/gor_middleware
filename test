@@ -1,0 +1,35 @@
+#!/bin/bash -e
+#
+# Run all tests
+
+cur=$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )
+
+FORMATTABLE="middleware"
+
+FMT=$FORMATTABLE
+TEST=$FORMATTABLE
+
+
+echo "Running tests..."
+cd $cur/middleware
+go test -v
+
+
+echo "Checking gofmt..."
+cd $cur
+fmtRes=$(gofmt -l $FMT)
+if [ -n "${fmtRes}" ]; then
+    echo -e "gofmt checking failed:\n${fmtRes}"
+    exit 255
+fi
+
+
+echo "Checking govet..."
+vetRes=$(go tool vet -printf=false $TEST)
+if [ -n "${vetRes}" ]; then
+    echo -e "govet checking failed:\n${vetRes}"
+    exit 255
+fi
+
+
+echo "Success"

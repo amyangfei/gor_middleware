@@ -1,4 +1,4 @@
-package middleware
+package gormw
 
 import (
 	"bufio"
@@ -8,9 +8,11 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"os/signal"
 	"strconv"
 	"strings"
 	"sync"
+	"syscall"
 )
 
 type GorMessage struct {
@@ -162,7 +164,29 @@ func (gor *Gor) receiver() {
 	}
 }
 
+func (gor *Gor) shutdown() {
+}
+
+func (gor *Gor) handleSignal(sigChan chan os.Signal) {
+	for {
+		s := <-sigChan
+		gor.stderr.Write([]byte(fmt.Sprintf("receive a signal %s\n", s.String())))
+		switch s {
+		case syscall.SIGQUIT, syscall.SIGTERM, syscall.SIGSTOP, syscall.SIGINT:
+			gor.shutdown()
+			return
+		default:
+			return
+		}
+	}
+}
+
 func (gor *Gor) Run() {
 	go gor.receiver()
 	go gor.preProcessor()
+
+	c := make(chan os.Signal, 1)
+	signal.Notify(c, syscall.SIGHUP, syscall.SIGQUIT, syscall.SIGTERM,
+		syscall.SIGINT, syscall.SIGSTOP)
+	gor.handleSignal(c)
 }

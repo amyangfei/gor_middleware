@@ -1,4 +1,4 @@
-package middleware
+package gormw
 
 import (
 	"encoding/hex"

@@ -1,4 +1,4 @@
-package middleware
+package gormw
 
 var ChanPrefixMap = map[string]string{
 	"1": "request",

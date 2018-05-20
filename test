@@ -4,14 +4,14 @@
 
 cur=$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )
 
-FORMATTABLE="middleware"
+FORMATTABLE="gormw"
 
 FMT=$FORMATTABLE
 TEST=$FORMATTABLE
 
 
 echo "Running tests..."
-cd $cur/middleware
+cd $cur/gormw
 go test -v
 
 

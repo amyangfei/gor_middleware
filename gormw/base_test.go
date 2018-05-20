@@ -8,20 +8,21 @@ import (
 var passby map[string]int = make(map[string]int)
 
 func init() {
-	passby["received"] = 0
+	passby["counter"] = 0
 }
 
-func incrReceived(gor *Gor, msg *GorMessage, kwargs ...interface{}) *GorMessage {
+func incrCounter(gor *Gor, msg *GorMessage, kwargs ...interface{}) *GorMessage {
 	passbyReadonly, _ := kwargs[0].(map[string]int)
-	passby["received"] += passbyReadonly["received"] + 1
+	increase, _ := kwargs[1].(int)
+	passby["counter"] += passbyReadonly["counter"] + increase
 	return msg
 }
 
 func TestMessageLogic(t *testing.T) {
 	gor := CreateGor()
-	gor.On("message", incrReceived, "", &passby)
-	gor.On("request", incrReceived, "", &passby)
-	gor.On("response", incrReceived, "2", &passby)
+	gor.On("message", incrCounter, "", &passby, 1)
+	gor.On("request", incrCounter, "", &passby, 2)
+	gor.On("response", incrCounter, "2", &passby, 3)
 	if len(gor.retainQueue) != 2 {
 		t.Errorf("gor retain queue length %d != 2", len(gor.retainQueue))
 	}
@@ -43,7 +44,7 @@ func TestMessageLogic(t *testing.T) {
 	gor.Emit(req)
 	gor.Emit(resp)
 	gor.Emit(resp2)
-	if passby["received"] != 5 {
-		t.Errorf("passby received %d != 5", passby["received"])
+	if passby["counter"] != 8 {
+		t.Errorf("passby counter %d != 8", passby["counter"])
 	}
 }

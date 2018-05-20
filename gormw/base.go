@@ -88,7 +88,7 @@ func (gor *Gor) Emit(msg *GorMessage) error {
 	for _, chanId := range chanIds {
 		if funcs, ok := gor.retainQueue[chanId]; ok {
 			for _, f := range funcs {
-				r := f.fn(gor, msg, f.args)
+				r := f.fn(gor, msg, f.args...)
 				if r != nil {
 					resp = r
 				}
@@ -100,7 +100,7 @@ func (gor *Gor) Emit(msg *GorMessage) error {
 		var f *InterFunc
 		for len(funcs) > 0 {
 			f, funcs = funcs[0], funcs[1:]
-			r := f.fn(gor, msg, f.args)
+			r := f.fn(gor, msg, f.args...)
 			if r != nil {
 				resp = r
 			}

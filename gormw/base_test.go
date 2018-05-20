@@ -2,6 +2,7 @@ package gormw
 
 import (
 	"encoding/hex"
+	"reflect"
 	"testing"
 )
 
@@ -46,5 +47,27 @@ func TestMessageLogic(t *testing.T) {
 	gor.Emit(resp2)
 	if passby["counter"] != 8 {
 		t.Errorf("passby counter %d != 8", passby["counter"])
+	}
+}
+
+func TestParseMessage(t *testing.T) {
+	gor := CreateGor()
+	payload := hex.EncodeToString([]byte("1 2 3\nGET / HTTP/1.1\r\n\r\n"))
+	if msg, err := gor.ParseMessage(payload); err != nil {
+		t.Error(err.Error())
+	} else {
+		if msg.Id != "2" {
+			t.Errorf("invalid msg id %s != 2", msg.Id)
+		}
+		if msg.Type != "1" {
+			t.Errorf("invalid msg type %s != 1", msg.Type)
+		}
+		meta := [][]byte{[]byte("1"), []byte("2"), []byte("3")}
+		if !reflect.DeepEqual(msg.Meta, meta) {
+			t.Errorf("invalid msg meta")
+		}
+		if !reflect.DeepEqual(msg.Http, []byte("GET / HTTP/1.1\r\n\r\n")) {
+			t.Errorf("invalid msg http")
+		}
 	}
 }

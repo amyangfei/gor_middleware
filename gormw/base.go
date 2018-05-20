@@ -9,14 +9,13 @@ import (
 	"io"
 	"os"
 	"os/signal"
-	"strconv"
 	"strings"
 	"sync"
 	"syscall"
 )
 
 type GorMessage struct {
-	Id      int
+	Id      string
 	Type    string
 	Meta    [][]byte // Meta is an array size of 4, containing: request type, uuid, timestamp, latency
 	RawMeta []byte   //
@@ -96,7 +95,7 @@ func (gor *Gor) Emit(msg *GorMessage) error {
 			}
 		}
 	}
-	tempChanId := fmt.Sprintf("%s#%d", chanPrefix, msg.Id)
+	tempChanId := fmt.Sprintf("%s#%s", chanPrefix, msg.Id)
 	if funcs, ok := gor.tempQueue[tempChanId]; ok {
 		var f *InterFunc
 		for len(funcs) > 0 {
@@ -131,8 +130,7 @@ func (gor *Gor) ParseMessage(line string) (*GorMessage, error) {
 	metaPos := bytes.Index(payload, []byte("\n"))
 	metaRaw := payload[:metaPos]
 	metaArr := bytes.Split(metaRaw, []byte(" "))
-	ptype := metaArr[0]
-	pid, err := strconv.Atoi(string(metaArr[1]))
+	ptype, pid := metaArr[0], string(metaArr[1])
 	if err != nil {
 		return nil, err
 	}

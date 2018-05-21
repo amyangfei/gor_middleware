@@ -12,6 +12,7 @@ import (
 	"strings"
 	"sync"
 	"syscall"
+	"time"
 )
 
 type GorMessage struct {
@@ -23,8 +24,9 @@ type GorMessage struct {
 }
 
 type InterFunc struct {
-	fn   func(*Gor, *GorMessage, ...interface{}) *GorMessage
-	args []interface{}
+	created time.Time
+	fn      func(*Gor, *GorMessage, ...interface{}) *GorMessage
+	args    []interface{}
 }
 
 type Gor struct {
@@ -54,8 +56,9 @@ func (gor *Gor) On(
 		channel = channel + "#" + idx
 	}
 	inmsg := &InterFunc{
-		fn:   fn,
-		args: args,
+		created: time.Now(),
+		fn:      fn,
+		args:    args,
 	}
 	gor.lock.Lock()
 	if idx != "" {
@@ -144,6 +147,21 @@ func (gor *Gor) ParseMessage(line string) (*GorMessage, error) {
 	}, nil
 }
 
+func (gor *Gor) cleanOldChannel(interval int) {
+	ticker := time.NewTicker(time.Second * 1)
+	for _ = range ticker.C {
+		gor.lock.Lock()
+		for _, funcs := range gor.tempQueue {
+			for i := len(funcs) - 1; i >= 0; i-- {
+				if time.Since(funcs[i].created) > time.Duration(interval) {
+					funcs = append(funcs[:i], funcs[i+1:]...)
+				}
+			}
+		}
+		gor.lock.Unlock()
+	}
+}
+
 func (gor *Gor) preProcessor() {
 	for {
 		line := <-gor.input
@@ -182,6 +200,7 @@ func (gor *Gor) handleSignal(sigChan chan os.Signal) {
 func (gor *Gor) Run() {
 	go gor.receiver()
 	go gor.preProcessor()
+	go gor.cleanOldChannel(60)
 
 	c := make(chan os.Signal, 1)
 	signal.Notify(c, syscall.SIGHUP, syscall.SIGQUIT, syscall.SIGTERM,

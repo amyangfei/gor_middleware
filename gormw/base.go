@@ -101,8 +101,12 @@ func (gor *Gor) Emit(msg *GorMessage) error {
 	tempChanId := fmt.Sprintf("%s#%s", chanPrefix, msg.Id)
 	if funcs, ok := gor.tempQueue[tempChanId]; ok {
 		var f *InterFunc
-		for len(funcs) > 0 {
-			f, funcs = funcs[0], funcs[1:]
+		tmp := make([]*InterFunc, 0)
+		gor.lock.Lock()
+		tmp, funcs = funcs[:len(funcs)], funcs[len(funcs):]
+		gor.lock.Unlock()
+		for len(tmp) > 0 {
+			f, tmp = tmp[0], tmp[1:]
 			r := f.fn(gor, msg, f.args...)
 			if r != nil {
 				resp = r
@@ -151,11 +155,14 @@ func (gor *Gor) cleanOldChannel(interval int) {
 	ticker := time.NewTicker(time.Second * 1)
 	for _ = range ticker.C {
 		gor.lock.Lock()
-		for _, funcs := range gor.tempQueue {
+		for channel, funcs := range gor.tempQueue {
 			for i := len(funcs) - 1; i >= 0; i-- {
 				if time.Since(funcs[i].created) > time.Duration(interval) {
 					funcs = append(funcs[:i], funcs[i+1:]...)
 				}
+			}
+			if len(funcs) == 0 {
+				delete(gor.tempQueue, channel)
 			}
 		}
 		gor.lock.Unlock()

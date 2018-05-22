@@ -2,7 +2,7 @@
 
 [![Build Status](https://travis-ci.org/amyangfei/gor_middleware.svg?branch=master)](https://travis-ci.org/amyangfei/gor_middleware)
 
-Python library for [GoReplay Middleware](https://github.com/buger/goreplay>) , API is quite similar to [NodeJS library](https://github.com/buger/goreplay/tree/master/middleware>)
+Golang library for [GoReplay Middleware](https://github.com/buger/goreplay) , API is quite similar to [NodeJS library](https://github.com/buger/goreplay/tree/master/middleware>)
 
 ## Installation
 

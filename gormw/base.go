@@ -34,6 +34,7 @@ type Gor struct {
 	tempQueue   map[string]([]*InterFunc)
 	lock        *sync.RWMutex
 	input       chan string
+	parsed      chan *GorMessage
 	stderr      io.Writer
 }
 
@@ -43,6 +44,7 @@ func CreateGor() *Gor {
 		tempQueue:   make(map[string]([]*InterFunc)),
 		lock:        new(sync.RWMutex),
 		input:       make(chan string),
+		parsed:      make(chan *GorMessage),
 		stderr:      os.Stderr,
 	}
 	return gor
@@ -175,7 +177,7 @@ func (gor *Gor) preProcessor() {
 		if msg, err := gor.ParseMessage(line); err != nil {
 			gor.stderr.Write([]byte(err.Error()))
 		} else {
-			gor.Emit(msg)
+			gor.parsed <- msg
 		}
 	}
 }
@@ -184,6 +186,13 @@ func (gor *Gor) receiver() {
 	scanner := bufio.NewScanner(os.Stdin)
 	for scanner.Scan() {
 		gor.input <- scanner.Text()
+	}
+}
+
+func (gor *Gor) processor() {
+	for {
+		msg := <-gor.parsed
+		gor.Emit(msg)
 	}
 }
 
@@ -207,6 +216,7 @@ func (gor *Gor) handleSignal(sigChan chan os.Signal) {
 func (gor *Gor) Run() {
 	go gor.receiver()
 	go gor.preProcessor()
+	go gor.processor()
 	go gor.cleanOldChannel(60)
 
 	c := make(chan os.Signal, 1)

@@ -30,8 +30,8 @@ type InterFunc struct {
 }
 
 type Gor struct {
-	retainQueue map[string]([]*InterFunc)
-	tempQueue   map[string]([]*InterFunc)
+	retainQueue map[string]([]*InterFunc) // retainQueue stores immutable registered event, such as "request", "response" etc
+	tempQueue   map[string]([]*InterFunc) // tempQueue stores mutable event associated with request ID
 	lock        *sync.RWMutex
 	input       chan string
 	parsed      chan *GorMessage
@@ -100,6 +100,8 @@ func (gor *Gor) Emit(msg *GorMessage) error {
 			}
 		}
 	}
+
+	// lazy remove registered events in gor.cleanOldChannel goroutine
 	tempChanId := fmt.Sprintf("%s#%s", chanPrefix, msg.Id)
 	if funcs, ok := gor.tempQueue[tempChanId]; ok {
 		var f *InterFunc

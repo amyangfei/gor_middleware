@@ -48,8 +48,8 @@ func TestHTTPPathParam(t *testing.T) {
 	if err != nil {
 		t.Errorf(err.Error())
 	}
-	if params, err := HTTPPathParam(payload, "test"); err != nil {
-		t.Errorf(err.Error())
+	if params, err2 := HTTPPathParam(payload, "test"); err != nil {
+		t.Errorf(err2.Error())
 	} else if !reflect.DeepEqual(params, []string{"123"}) {
 		t.Errorf("invalid params: %v", params)
 	}

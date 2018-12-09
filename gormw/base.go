@@ -112,7 +112,7 @@ func (gor *Gor) Emit(msg *GorMessage) error {
 		var f *InterFunc
 		tmp := make([]*InterFunc, 0)
 		gor.lock.Lock()
-		tmp, funcs = funcs[:len(funcs)], funcs[len(funcs):]
+		tmp, funcs = funcs[:], funcs[len(funcs):]
 		gor.lock.Unlock()
 		for len(tmp) > 0 {
 			f, tmp = tmp[0], tmp[1:]

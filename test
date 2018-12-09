@@ -4,32 +4,28 @@
 
 cur=$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )
 
-FORMATTABLE="gormw"
-
-FMT=$FORMATTABLE
-TEST=$FORMATTABLE
+export GO111MODULE=on
+GO="go"
+PACKAGES=$(go list ./... | grep -vE 'vendor')
+FILES=$(find . -name "*.go" | grep -vE "vendor")
+TOPDIRS=$(ls -d */ | grep -vE "vendor")
 
 
 echo "Running tests..."
-cd $cur/gormw
-go test -v
-
+${GO} test -v -cover ${PACKAGES}
 
 echo "Checking gofmt..."
-cd $cur
-fmtRes=$(gofmt -l $FMT)
-if [ -n "${fmtRes}" ]; then
-    echo -e "gofmt checking failed:\n${fmtRes}"
-    exit 255
-fi
-
+gofmt -s -l -w ${FILES} 2>&1 | awk '{print} END{if(NR>0) {exit 1}}'
 
 echo "Checking govet..."
-vetRes=$(go tool vet -printf=false $TEST)
-if [ -n "${vetRes}" ]; then
-    echo -e "govet checking failed:\n${vetRes}"
-    exit 255
-fi
+${GO} tool vet -all -shadow ${TOPDIRS} 2>&1 | tee /dev/stderr | awk '/shadows declaration/{next}{count+=1} END{if(count>0) {exit 1}}'
 
+# GO111MODULE=off go get github.com/kisielk/errcheck
+# echo "errcheck"
+# errcheck -blank ${PACKAGES} | grep -v "_test\.go" | awk '{print} END{if(NR>0) {exit 1}}'
+
+GO111MODULE=off go get github.com/golang/lint/golint
+echo "Checking golint..."
+golint -set_exit_status ${PACKAGES}
 
 echo "Success"

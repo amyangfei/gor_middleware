@@ -23,7 +23,7 @@ go vet -all ${PACKAGES} 2>&1 | awk '{print} END{if(NR>0) {exit 1}}'
 # echo "errcheck"
 # errcheck -blank ${PACKAGES} | grep -v "_test\.go" | awk '{print} END{if(NR>0) {exit 1}}'
 
-GO111MODULE=off go get github.com/golang/lint/golint
+GO111MODULE=off go get golang.org/x/lint/golint
 echo "Checking golint..."
 golint -set_exit_status ${PACKAGES}
 

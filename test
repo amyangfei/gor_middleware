@@ -4,21 +4,20 @@
 
 cur=$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )
 
-export GO111MODULE=on
-GO="go"
 PACKAGES=$(go list ./... | grep -vE 'vendor')
 FILES=$(find . -name "*.go" | grep -vE "vendor")
 TOPDIRS=$(ls -d */ | grep -vE "vendor")
 
 
 echo "Running tests..."
-${GO} test -v -cover ${PACKAGES}
+GO111MODULE=on go test -v -cover ${PACKAGES}
 
 echo "Checking gofmt..."
 gofmt -s -l -w ${FILES} 2>&1 | awk '{print} END{if(NR>0) {exit 1}}'
 
 echo "Checking govet..."
-${GO} tool vet -all -shadow ${TOPDIRS} 2>&1 | tee /dev/stderr | awk '/shadows declaration/{next}{count+=1} END{if(count>0) {exit 1}}'
+# go vet -all -shadow ${PACKAGES} 2>&1 | awk '{print} END{if(NR>0) {exit 1}}'
+go vet -all ${PACKAGES} 2>&1 | awk '{print} END{if(NR>0) {exit 1}}'
 
 # GO111MODULE=off go get github.com/kisielk/errcheck
 # echo "errcheck"

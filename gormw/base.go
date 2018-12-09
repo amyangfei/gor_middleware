@@ -4,7 +4,6 @@ import (
 	"bufio"
 	"bytes"
 	"encoding/hex"
-	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -15,20 +14,23 @@ import (
 	"time"
 )
 
+// GorMessage stores data and parsed information in a incoming request
 type GorMessage struct {
-	Id      string
+	ID      string
 	Type    string
 	Meta    [][]byte // Meta is an array size of 4, containing: request type, uuid, timestamp, latency
 	RawMeta []byte   //
-	Http    []byte   // Raw HTTP payload
+	HTTP    []byte   // Raw HTTP payload
 }
 
+// InterFunc stores event callback function, args and create time
 type InterFunc struct {
 	created time.Time
 	fn      func(*Gor, *GorMessage, ...interface{}) *GorMessage
 	args    []interface{}
 }
 
+// Gor is the middleware itself
 type Gor struct {
 	retainQueue map[string]([]*InterFunc) // retainQueue stores immutable registered event, such as "request", "response" etc
 	tempQueue   map[string]([]*InterFunc) // tempQueue stores mutable event associated with request ID
@@ -38,6 +40,7 @@ type Gor struct {
 	stderr      io.Writer
 }
 
+// CreateGor creates a Gor object
 func CreateGor() *Gor {
 	gor := &Gor{
 		retainQueue: make(map[string]([]*InterFunc)),
@@ -50,6 +53,7 @@ func CreateGor() *Gor {
 	return gor
 }
 
+// On is used to register event and callback function
 func (gor *Gor) On(
 	channel string, fn func(*Gor, *GorMessage, ...interface{}) *GorMessage,
 	idx string, args ...interface{}) {
@@ -83,15 +87,16 @@ func (gor *Gor) On(
 	gor.lock.Unlock()
 }
 
+// Emit triggers the registerd event callback when receiving certain GorMessage
 func (gor *Gor) Emit(msg *GorMessage) error {
 	chanPrefix, ok := ChanPrefixMap[msg.Type]
 	if !ok {
-		return errors.New(fmt.Sprintf("invalid message type: %s", msg.Type))
+		return fmt.Errorf("invalid message type: %s", msg.Type)
 	}
-	chanIds := [2]string{"message", chanPrefix}
+	chanIDs := [2]string{"message", chanPrefix}
 	resp := msg
-	for _, chanId := range chanIds {
-		if funcs, ok := gor.retainQueue[chanId]; ok {
+	for _, chanID := range chanIDs {
+		if funcs, ok := gor.retainQueue[chanID]; ok {
 			for _, f := range funcs {
 				r := f.fn(gor, msg, f.args...)
 				if r != nil {
@@ -102,8 +107,8 @@ func (gor *Gor) Emit(msg *GorMessage) error {
 	}
 
 	// lazy remove registered events in gor.cleanOldChannel goroutine
-	tempChanId := fmt.Sprintf("%s#%s", chanPrefix, msg.Id)
-	if funcs, ok := gor.tempQueue[tempChanId]; ok {
+	tempChanID := fmt.Sprintf("%s#%s", chanPrefix, msg.ID)
+	if funcs, ok := gor.tempQueue[tempChanID]; ok {
 		var f *InterFunc
 		tmp := make([]*InterFunc, 0)
 		gor.lock.Lock()
@@ -123,8 +128,9 @@ func (gor *Gor) Emit(msg *GorMessage) error {
 	return nil
 }
 
+// HexData translates a GorMessage into middleware dataflow string
 func (gor *Gor) HexData(msg *GorMessage) string {
-	encodeList := [3][]byte{msg.RawMeta, []byte("\n"), msg.Http}
+	encodeList := [3][]byte{msg.RawMeta, []byte("\n"), msg.HTTP}
 	encodedList := make([]string, 3)
 	for i, val := range encodeList {
 		encodedList[i] = hex.EncodeToString(val)
@@ -133,6 +139,7 @@ func (gor *Gor) HexData(msg *GorMessage) string {
 	return strings.Join(encodedList, "")
 }
 
+// ParseMessage parses string middleware dataflow into a GorMessage
 func (gor *Gor) ParseMessage(line string) (*GorMessage, error) {
 	payload, err := hex.DecodeString(strings.TrimSpace(line))
 	if err != nil {
@@ -147,17 +154,17 @@ func (gor *Gor) ParseMessage(line string) (*GorMessage, error) {
 	}
 	httpPayload := payload[metaPos+1:]
 	return &GorMessage{
-		Id:      pid,
+		ID:      pid,
 		Type:    string(ptype),
 		Meta:    metaArr,
 		RawMeta: metaRaw,
-		Http:    httpPayload,
+		HTTP:    httpPayload,
 	}, nil
 }
 
 func (gor *Gor) cleanOldChannel(interval int) {
 	ticker := time.NewTicker(time.Second * 1)
-	for _ = range ticker.C {
+	for range ticker.C {
 		gor.lock.Lock()
 		for channel, funcs := range gor.tempQueue {
 			for i := len(funcs) - 1; i >= 0; i-- {
@@ -215,6 +222,7 @@ func (gor *Gor) handleSignal(sigChan chan os.Signal) {
 	}
 }
 
+// Run is entrypoint of Gor
 func (gor *Gor) Run() {
 	go gor.receiver()
 	go gor.preProcessor()

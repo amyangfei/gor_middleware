@@ -6,7 +6,7 @@ import (
 	"testing"
 )
 
-var passby map[string]int = make(map[string]int)
+var passby = make(map[string]int)
 
 func init() {
 	passby["counter"] = 0
@@ -56,8 +56,8 @@ func TestParseMessage(t *testing.T) {
 	if msg, err := gor.ParseMessage(payload); err != nil {
 		t.Error(err.Error())
 	} else {
-		if msg.Id != "2" {
-			t.Errorf("invalid msg id %s != 2", msg.Id)
+		if msg.ID != "2" {
+			t.Errorf("invalid msg id %s != 2", msg.ID)
 		}
 		if msg.Type != "1" {
 			t.Errorf("invalid msg type %s != 1", msg.Type)
@@ -66,7 +66,7 @@ func TestParseMessage(t *testing.T) {
 		if !reflect.DeepEqual(msg.Meta, meta) {
 			t.Errorf("invalid msg meta")
 		}
-		if !reflect.DeepEqual(msg.Http, []byte("GET / HTTP/1.1\r\n\r\n")) {
+		if !reflect.DeepEqual(msg.HTTP, []byte("GET / HTTP/1.1\r\n\r\n")) {
 			t.Errorf("invalid msg http")
 		}
 	}

@@ -11,7 +11,8 @@ func invalidPayloadError(payload string) (string, error) {
 	return "", fmt.Errorf("invalid payload: %s", payload)
 }
 
-func HttpMethod(payload string) (string, error) {
+// HTTPMethod returns http method from payload string
+func HTTPMethod(payload string) (string, error) {
 	pend := strings.IndexByte(payload, ' ')
 	if pend == -1 {
 		return invalidPayloadError(payload)
@@ -19,7 +20,8 @@ func HttpMethod(payload string) (string, error) {
 	return payload[:pend], nil
 }
 
-func HttpPath(payload string) (string, error) {
+// HTTPPath returns http path from payload string
+func HTTPPath(payload string) (string, error) {
 	payload, err := url.PathUnescape(payload)
 	if err != nil {
 		return "", err
@@ -35,7 +37,8 @@ func HttpPath(payload string) (string, error) {
 	return payload[pstart+1 : pstart+pend+1], nil
 }
 
-func SetHttpPath(payload, new_path string) (string, error) {
+// SetHTTPPath sets new path returns new payload string
+func SetHTTPPath(payload, newPath string) (string, error) {
 	pstart := strings.IndexByte(payload, ' ')
 	if pstart == -1 {
 		return invalidPayloadError(payload)
@@ -44,20 +47,24 @@ func SetHttpPath(payload, new_path string) (string, error) {
 	if pend == -1 {
 		return invalidPayloadError(payload)
 	}
-	return payload[:pstart+1] + new_path + payload[pstart+pend+1:], nil
+	return payload[:pstart+1] + newPath + payload[pstart+pend+1:], nil
 }
 
-// Http response have status code in the same position as path for requests
-func HttpStatus(payload string) (string, error) {
-	return HttpPath(payload)
+// HTTPStatus returns http status of the payload
+// HTTP response have status code in the same position as path for requests
+func HTTPStatus(payload string) (string, error) {
+	return HTTPPath(payload)
 }
 
-func SetHttpStatus(payload, new_status string) (string, error) {
-	return SetHttpPath(payload, new_status)
+// SetHTTPStatus set new status and return new payload string
+func SetHTTPStatus(payload, newStatus string) (string, error) {
+	return SetHTTPPath(payload, newStatus)
 }
 
-func HttpPathParam(payload, name string) ([]string, error) {
-	path, err := HttpPath(payload)
+// HTTPPathParam gets path param with specific name, params with same name will
+// be all returned in the slice
+func HTTPPathParam(payload, name string) ([]string, error) {
+	path, err := HTTPPath(payload)
 	if err != nil {
 		return []string{}, err
 	}
@@ -72,13 +79,13 @@ func HttpPathParam(payload, name string) ([]string, error) {
 	value, ok := m[name]
 	if !ok {
 		return []string{}, nil
-	} else {
-		return value, nil
 	}
+	return value, nil
 }
 
-func SetHttpPathParam(payload, name, value string) (string, error) {
-	pathQs, err := HttpPath(payload)
+// SetHTTPPathParam sets path param new value with key and returns new payload string
+func SetHTTPPathParam(payload, name, value string) (string, error) {
+	pathQs, err := HTTPPath(payload)
 	if err != nil {
 		return "", err
 	}
@@ -93,10 +100,11 @@ func SetHttpPathParam(payload, name, value string) (string, error) {
 		}
 		newPath += name + "=" + value
 	}
-	return SetHttpPath(payload, url.PathEscape(newPath))
+	return SetHTTPPath(payload, url.PathEscape(newPath))
 }
 
-func HttpHeader(payload, name string) (map[string]interface{}, error) {
+// HTTPHeader returns the value of key with specific name in http headers
+func HTTPHeader(payload, name string) (map[string]interface{}, error) {
 	currentLine := 0
 	idx := 0
 	header := map[string]interface{}{
@@ -107,8 +115,8 @@ func HttpHeader(payload, name string) (map[string]interface{}, error) {
 	for idx < len(payload) {
 		c := payload[idx]
 		if c == '\n' {
-			currentLine += 1
-			idx += 1
+			currentLine++
+			idx++
 			header["end"] = idx
 			start := header["start"].(int)
 			vstart := header["vstart"].(int)
@@ -124,11 +132,11 @@ func HttpHeader(payload, name string) (map[string]interface{}, error) {
 			header["start"] = -1
 			header["vstart"] = -1
 		} else if c == '\r' {
-			idx += 1
+			idx++
 			continue
 		} else if c == ':' {
 			if header["vstart"].(int) == -1 {
-				idx += 1
+				idx++
 				header["vstart"] = idx
 				continue
 			}
@@ -136,23 +144,23 @@ func HttpHeader(payload, name string) (map[string]interface{}, error) {
 		if header["start"].(int) == -1 {
 			header["start"] = idx
 		}
-		idx += 1
+		idx++
 	}
 	return nil, nil
 }
 
-func SetHttpHeader(payload, name, value string) (string, error) {
-	header, err := HttpHeader(payload, name)
+// SetHTTPHeader sets variable in http header with specific key value pair
+func SetHTTPHeader(payload, name, value string) (string, error) {
+	header, err := HTTPHeader(payload, name)
 	if err != nil {
 		return "", err
 	}
 	if header == nil {
-		header_start := strings.IndexByte(payload, '\n') + 1
-		if header_start == 0 {
+		headerStart := strings.IndexByte(payload, '\n') + 1
+		if headerStart == 0 {
 			return invalidPayloadError(payload)
 		}
-		return payload[:header_start] + name + ": " + value + "\r\n" + payload[header_start:], nil
-	} else {
-		return payload[:header["vstart"].(int)] + " " + value + "\r\n" + payload[header["end"].(int):], nil
+		return payload[:headerStart] + name + ": " + value + "\r\n" + payload[headerStart:], nil
 	}
+	return payload[:header["vstart"].(int)] + " " + value + "\r\n" + payload[header["end"].(int):], nil
 }
